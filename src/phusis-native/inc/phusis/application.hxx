@@ -31,6 +31,7 @@ namespace Phusis
 		VkSurfaceKHR _surface = nullptr;
 		VkSwapchainKHR _swapchain = nullptr;
 		std::vector<VkImage> _buffers{};
+		VkCommandPool _commandPool = nullptr;
 
 	private:
 		Window _window = nullptr;
@@ -63,6 +64,8 @@ namespace Phusis
 		bool VkValidateSwapchain() noexcept;
 
 		bool VkInitializeSwapchain() noexcept;
+
+		bool VkInitializeCommandPool() noexcept;
 	};
 }
 

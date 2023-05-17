@@ -46,6 +46,8 @@ int32_t vk_main()
 		return 9;
 	if (!app.VkInitializeSwapchain())
 		return 10;
+	if (!app.VkInitializeCommandPool())
+		return 11;
 
 	sys::log.head(sys::INFO) << "complete operation successfully" << sys::EOM;
 

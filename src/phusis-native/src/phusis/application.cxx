@@ -23,6 +23,7 @@ Phusis::Application::Application(
 
 Phusis::Application::~Application() noexcept
 {
+	vkDestroyCommandPool(_device, _commandPool, nullptr);
 	vkDestroySwapchainKHR(_device, _swapchain, nullptr);
 	vkDestroySurfaceKHR(_instance, _surface, nullptr);
 	vkDestroyDevice(_device, nullptr);
@@ -434,6 +435,28 @@ bool Phusis::Application::VkInitializeSwapchain() noexcept
 	_buffers = buffers;
 
 	sys::log.head(sys::INFO) << "swapchain initialized" << sys::EOM;
+
+	return true;
+}
+
+bool Phusis::Application::VkInitializeCommandPool() noexcept
+{
+	VkCommandPoolCreateInfo info{};
+	info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+	info.queueFamilyIndex = _queueFamilyIdx;
+
+	VkCommandPool pool;
+	VkResult result = vkCreateCommandPool(_device, &info, nullptr, &pool);
+	if (result != VK_SUCCESS)
+	{
+		sys::log.head(sys::CRIT) << "cannot create vulkan command pool" << sys::EOM;
+		return false;
+	}
+
+	_commandPool = pool;
+
+	sys::log.head(sys::INFO) << "vulkan command pool created" << sys::EOM;
 
 	return true;
 }
