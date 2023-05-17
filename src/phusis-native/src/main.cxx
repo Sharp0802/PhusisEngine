@@ -24,11 +24,7 @@ int32_t main() noexcept
 void vk_main()
 {
 	const std::vector<std::string> layers = { "VK_LAYER_KHRONOS_validation" };
-	const std::vector<std::string> exts = {
-			"VK_KHR_surface",
-			"VK_EXT_swapchain_colorspace",
-			sys::os::surface
-	};
+	const std::vector<std::string> exts = {};
 
 	Phusis::Application app(layers, exts, Phusis::ApplicationMode::Quality);
 	if (!app.VkValidateLayer())

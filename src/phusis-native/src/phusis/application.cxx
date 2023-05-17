@@ -1,14 +1,24 @@
+#include <cstring>
 #include "phusis/application.hxx"
 #include "sys/logger.hxx"
+#include "sys/os.hxx"
 
 Phusis::Application::Application(
 		const std::vector<std::string>& requiredLayers,
 		const std::vector<std::string>& requiredExtensions,
 		ApplicationMode mode) noexcept:
 		_requiredLayers(requiredLayers),
-		_requiredExtensions(requiredExtensions),
 		_mode(mode)
 {
+	// do NOT use glfwGetRequiredInstanceExtensions : it doesn't work
+	_requiredExtensions = std::vector<std::string>(requiredExtensions.size() + 3);
+	_requiredExtensions.assign(requiredExtensions.begin(), requiredExtensions.end());
+	_requiredExtensions.emplace_back("VK_KHR_surface");
+	_requiredExtensions.emplace_back(sys::os::surface);
+	_requiredExtensions.emplace_back("VK_EXT_swapchain_colorspace");
+
+	for (const auto& i: _requiredExtensions)
+		sys::log.head(sys::INFO) << "EXT required: " << i << sys::EOM;
 }
 
 Phusis::Application::~Application() noexcept
