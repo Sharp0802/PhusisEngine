@@ -49,11 +49,11 @@ bool Phusis::Application::VkValidateLayer() noexcept
 		if (i == cProperty)
 		{
 			failed = true;
-			sys::log.head(sys::FAIL) << "vulkan layer '" << required << "' not found" << sys::EOM;
+			sys::log.head(sys::FAIL) << "vulkan layer '" << required << "' not matched" << sys::EOM;
 		}
 		else
 		{
-			sys::log.head(sys::INFO) << "vulkan layer '" << required << "' found" << sys::EOM;
+			sys::log.head(sys::INFO) << "vulkan layer '" << required << "' matched" << sys::EOM;
 		}
 	}
 
@@ -106,7 +106,7 @@ bool Phusis::Application::VkInitializePhysicalDevice() noexcept
 		VkPhysicalDeviceProperties prop{};
 		vkGetPhysicalDeviceProperties(device, &prop);
 
-		sys::log.head(sys::INFO) << "GPU found: " << prop.deviceName << sys::EOM;
+		sys::log.head(sys::VERB) << "GPU found: " << prop.deviceName << sys::EOM;
 	}
 
 	VkPhysicalDevice physicalDevice = physicalDevices[0];
@@ -186,9 +186,9 @@ bool Phusis::Application::VkValidateExtension() noexcept
 	std::vector<VkExtensionProperties> extensions(cExtension);
 	vkEnumerateInstanceExtensionProperties(nullptr, &cExtension, &extensions[0]);
 
-	for (const auto& extension : extensions)
+	for (const auto& extension: extensions)
 	{
-		sys::log.head(sys::INFO) << "EXT found: " << std::string(extension.extensionName) << sys::EOM;
+		sys::log.head(sys::VERB) << "EXT found: " << std::string(extension.extensionName) << sys::EOM;
 	}
 
 	auto* extensionNames = new std::string[cExtension];
