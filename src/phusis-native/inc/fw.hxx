@@ -19,11 +19,15 @@
 #include <sstream>
 #include <atomic>
 #include <filesystem>
+#include <algorithm>
 
 #include <unistd.h>
 #include <threads.h>
 
+#define GLFW_INCLUDE_VULKAN
 #include <vulkan/vulkan.h>
+#include <GLFW/glfw3.h>
+#undef GLFW_INCLUDE_VULKAN
 
 #define CCTOR \
 friend class cctor; \
