@@ -3,7 +3,6 @@
 
 #include "fw.hxx"
 #include "lockable.hxx"
-#include "threadlocal.hxx"
 
 namespace sys
 {
@@ -13,7 +12,8 @@ namespace sys
 		FAIL = 2,
 		WARN = 3,
 		INFO = 4,
-		DBUG = 5,
+		VERB = 5,
+		DBUG = 6,
 		EOM = 0
 	};
 

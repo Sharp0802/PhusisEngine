@@ -10,6 +10,7 @@ sys::loggerctx sys::logger::__head(loggerctrl ctrl, const char* file, int32_t li
 			"FAIL",
 			"WARN",
 			"INFO",
+			"VERB",
 			"DBUG",
 	};
 
@@ -18,6 +19,7 @@ sys::loggerctx sys::logger::__head(loggerctrl ctrl, const char* file, int32_t li
 			"\033[1m\033[31m",
 			"\033[31m",
 			"\033[33m",
+			"\033[0m",
 			"\033[37m",
 			"\033[36m"
 	};
