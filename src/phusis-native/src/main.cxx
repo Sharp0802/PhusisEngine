@@ -3,14 +3,13 @@
 #include "sys/logger.hxx"
 #include "sys/os.hxx"
 
-void vk_main();
+int32_t vk_main();
 
 int32_t main() noexcept
 {
 	try
 	{
-		vk_main();
-		return 0;
+		return vk_main();
 	}
 	catch (std::exception& exception)
 	{
@@ -21,24 +20,34 @@ int32_t main() noexcept
 	}
 }
 
-void vk_main()
+int32_t vk_main()
 {
 	const std::vector<std::string> layers = { "VK_LAYER_KHRONOS_validation" };
 	const std::vector<std::string> exts = {};
 
 	Phusis::Application app(layers, exts, Phusis::ApplicationMode::Quality);
 	if (!app.VkValidateLayer())
-		return;
+		return 1;
 	if (!app.VkValidateExtension())
-		return;
+		return 2;
 	if (!app.VkInitializeInstance())
-		return;
+		return 3;
 	if (!app.VkInitializePhysicalDevice())
-		return;
+		return 4;
 	if (!app.VkInitializeDeviceQueue())
-		return;
-
-	app.~Application();
+		return 5;
+	if (!app.GLFWInitialize())
+		return 6;
+	if (!app.GLFWCreateWindow())
+		return 7;
+	if (!app.GLFWCreateSurface())
+		return 8;
+	if (!app.VkValidateSwapchain())
+		return 9;
+	if (!app.VkInitializeSwapchain())
+		return 10;
 
 	sys::log.head(sys::INFO) << "complete operation successfully" << sys::EOM;
+
+	return 0;
 }

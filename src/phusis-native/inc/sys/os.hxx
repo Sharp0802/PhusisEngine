@@ -33,7 +33,7 @@ namespace sys
 		;
 
 		static constexpr const char* surfaces[__N_ITEMS] = {
-				"VK_KHR_wayland_surface",
+				"VK_KHR_xcb_surface",
 				"VK_MVK_macos_surface",
 				"VK_KHR_win32_surface",
 				nullptr

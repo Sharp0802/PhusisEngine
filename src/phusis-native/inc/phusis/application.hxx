@@ -12,6 +12,8 @@ namespace Phusis
 		Quality
 	};
 
+	using Window = GLFWwindow*;
+
 	class Application
 	{
 	private:
@@ -22,8 +24,16 @@ namespace Phusis
 	private:
 		VkPhysicalDevice _physicalDevice = nullptr;
 		VkDevice _device = nullptr;
+		uint32_t _queueFamilyIdx = 0;
+		VkPresentModeKHR _presentMode = VK_PRESENT_MODE_FIFO_KHR;
 		VkQueue _queue = nullptr;
 		VkInstance _instance = nullptr;
+		VkSurfaceKHR _surface = nullptr;
+		VkSwapchainKHR _swapchain = nullptr;
+		std::vector<VkImage> _buffers{};
+
+	private:
+		Window _window = nullptr;
 
 	public:
 		Application(
@@ -43,6 +53,16 @@ namespace Phusis
 		bool VkInitializeDeviceQueue() noexcept;
 
 		bool VkValidateExtension() noexcept;
+
+		bool GLFWInitialize() noexcept;
+
+		bool GLFWCreateWindow() noexcept;
+
+		bool GLFWCreateSurface() noexcept;
+
+		bool VkValidateSwapchain() noexcept;
+
+		bool VkInitializeSwapchain() noexcept;
 	};
 }
 
