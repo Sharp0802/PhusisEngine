@@ -20,6 +20,7 @@
 #include <atomic>
 #include <filesystem>
 #include <algorithm>
+#include <thread>
 
 #include <unistd.h>
 #include <threads.h>

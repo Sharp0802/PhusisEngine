@@ -6,9 +6,11 @@
 Phusis::Application::Application(
 		const std::vector<std::string>& requiredLayers,
 		const std::vector<std::string>& requiredExtensions,
-		ApplicationMode mode) noexcept:
+		ApplicationMode mode,
+		uint32_t bufferCnt) noexcept:
 		_requiredLayers(requiredLayers),
-		_mode(mode)
+		_mode(mode),
+		_bufferCnt(bufferCnt)
 {
 	// do NOT use glfwGetRequiredInstanceExtensions : it doesn't work
 	_requiredExtensions = std::vector<std::string>(requiredExtensions.size() + 3);
@@ -23,7 +25,11 @@ Phusis::Application::Application(
 
 Phusis::Application::~Application() noexcept
 {
-	vkDestroyCommandPool(_device, _commandPool, nullptr);
+	sys::log.head(sys::INFO) << "clean up resources..." << sys::EOM;
+
+	for (const auto& data: _threads)
+		vkDestroyCommandPool(_device, data.CommandPool, nullptr);
+	vkDestroyCommandPool(_device, _primaryCommandPool, nullptr);
 	vkDestroySwapchainKHR(_device, _swapchain, nullptr);
 	vkDestroySurfaceKHR(_instance, _surface, nullptr);
 	vkDestroyDevice(_device, nullptr);
@@ -39,7 +45,7 @@ bool Phusis::Application::VkValidateLayer() noexcept
 	vkEnumerateInstanceLayerProperties(&cProperty, &properties[0]);
 
 	auto* layers = new std::string[cProperty];
-	for (int i = 0; i < cProperty; ++i)
+	for (uint32_t i = 0; i < cProperty; ++i)
 		layers[i] = std::string(properties[i].layerName);
 
 	bool failed = false;
@@ -74,12 +80,12 @@ bool Phusis::Application::VkInitializeInstance() noexcept
 {
 	size_t cLayer = _requiredLayers.size();
 	const char** layers = new const char* [cLayer];
-	for (int i = 0; i < cLayer; ++i)
+	for (size_t i = 0; i < cLayer; ++i)
 		layers[i] = _requiredLayers[i].c_str();
 
 	size_t cExt = _requiredExtensions.size();
 	const char** exts = new const char* [cExt];
-	for (int i = 0; i < cExt; ++i)
+	for (size_t i = 0; i < cExt; ++i)
 		exts[i] = _requiredExtensions[i].c_str();
 
 	VkInstanceCreateInfo create_info{};
@@ -168,7 +174,7 @@ bool Phusis::Application::VkInitializeDeviceQueue() noexcept
 	vkEnumerateDeviceExtensionProperties(_physicalDevice, nullptr, &cExt, &extensions[0]);
 
 	bool failed = false;
-	for (const auto& e : ext)
+	for (const auto& e: ext)
 	{
 		uint32_t i;
 		for (i = 0; i < extensions.size(); ++i)
@@ -324,7 +330,7 @@ bool Phusis::Application::VkValidateSwapchain() noexcept
 	};
 
 	bool matched = false;
-	for (const auto& mode : modes)
+	for (const auto& mode: modes)
 	{
 		int idx;
 		switch (mode)
@@ -378,7 +384,7 @@ bool Phusis::Application::VkInitializeSwapchain() noexcept
 
 	bool matched;
 	VkSurfaceFormatKHR fmt;
-	for (const auto& format : formats)
+	for (const auto& format: formats)
 	{
 		sys::log.head(sys::VERB) << "SRF-FMT found: " << format.format << sys::EOM;
 		if (VK_FORMAT_B8G8R8A8_UNORM == format.format)
@@ -441,22 +447,118 @@ bool Phusis::Application::VkInitializeSwapchain() noexcept
 
 bool Phusis::Application::VkInitializeCommandPool() noexcept
 {
-	VkCommandPoolCreateInfo info{};
-	info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-	info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-	info.queueFamilyIndex = _queueFamilyIdx;
+	VkCommandPoolCreateInfo primaryInfo{};
+	primaryInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	primaryInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+	primaryInfo.queueFamilyIndex = _queueFamilyIdx;
 
 	VkCommandPool pool;
-	VkResult result = vkCreateCommandPool(_device, &info, nullptr, &pool);
+	VkResult result = vkCreateCommandPool(_device, &primaryInfo, nullptr, &pool);
 	if (result != VK_SUCCESS)
 	{
-		sys::log.head(sys::CRIT) << "cannot create vulkan command pool" << sys::EOM;
+		sys::log.head(sys::CRIT) << "cannot create primary command-pool" << sys::EOM;
 		return false;
 	}
 
-	_commandPool = pool;
+	_primaryCommandPool = pool;
 
-	sys::log.head(sys::INFO) << "vulkan command pool created" << sys::EOM;
+	sys::log.head(sys::INFO) << "primary command-pool created" << sys::EOM;
+
+	bool failed = false;
+	for (auto& data: _threads)
+	{
+		VkCommandPoolCreateInfo info{};
+		info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+		info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+		info.queueFamilyIndex = _queueFamilyIdx;
+
+		VkCommandPool localPool;
+		VkResult localResult = vkCreateCommandPool(_device, &info, nullptr, &localPool);
+		if (localResult != VK_SUCCESS)
+		{
+			sys::log.head(sys::FAIL) << "cannot create secondary command-pool" << sys::EOM;
+			failed = true;
+			continue;
+		}
+
+		data.CommandPool = localPool;
+	}
+	if (failed)
+	{
+		sys::log.head(sys::CRIT) << "cannot initialize secondary command-pool set" << sys::EOM;
+		return false;
+	}
+
+	sys::log.head(sys::INFO) << "secondary command-pool created" << sys::EOM;
 
 	return true;
+}
+
+bool Phusis::Application::VkInitializeCommandBuffer() noexcept
+{
+	bool failed = false;
+	for (auto& data: _threads)
+	{
+		VkCommandBufferAllocateInfo info{};
+		info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+		info.commandBufferCount = _bufferCnt;
+		info.commandPool = data.CommandPool;
+		info.level = VK_COMMAND_BUFFER_LEVEL_SECONDARY;
+
+		std::vector<VkCommandBuffer> buffers{_bufferCnt};
+		VkResult result = vkAllocateCommandBuffers(_device, &info, &buffers[0]);
+		if (result != VK_SUCCESS)
+		{
+			sys::log.head(sys::FAIL) << "cannot create command-buffer" << sys::EOM;
+			failed = true;
+			continue;
+		}
+
+		data.CommandBuffer = buffers;
+	}
+	if (failed)
+	{
+		sys::log.head(sys::CRIT) << "cannot initialize command-buffer set" << sys::EOM;
+		return false;
+	}
+
+	sys::log.head(sys::INFO) << "command-buffer set initialized" << sys::EOM;
+
+	return false;
+}
+
+int32_t Phusis::Application::InitializeComponents() noexcept
+{
+	sys::log.head(sys::DBUG) << "\n=== SYSTEM CONFIGURATION ===\n"
+							 << "Hardware Concurrency : " << _threads.size() << "\n"
+							 << "CommandBuffer Count  : " << _threads.size() * _bufferCnt << sys::EOM;
+
+	if (!VkValidateLayer())
+		return 1;
+	if (!VkValidateExtension())
+		return 2;
+	if (!VkInitializeInstance())
+		return 3;
+	if (!VkInitializePhysicalDevice())
+		return 4;
+	if (!VkInitializeDeviceQueue())
+		return 5;
+	if (!GLFWInitialize())
+		return 6;
+	if (!GLFWCreateWindow())
+		return 7;
+	if (!GLFWCreateSurface())
+		return 8;
+	if (!VkValidateSwapchain())
+		return 9;
+	if (!VkInitializeSwapchain())
+		return 10;
+	if (!VkInitializeCommandPool())
+		return 11;
+	if (!VkInitializeCommandBuffer())
+		return 12;
+
+	sys::log.head(sys::INFO) << "complete operation successfully" << sys::EOM;
+
+	return 0;
 }

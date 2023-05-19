@@ -14,12 +14,20 @@ namespace Phusis
 
 	using Window = GLFWwindow*;
 
+	class VkThreadData
+	{
+	public:
+		VkCommandPool CommandPool;
+		std::vector<VkCommandBuffer> CommandBuffer;
+	};
+
 	class Application
 	{
 	private:
 		std::vector<std::string> _requiredLayers;
 		std::vector<std::string> _requiredExtensions;
 		ApplicationMode _mode;
+		uint32_t _bufferCnt;
 
 	private:
 		VkPhysicalDevice _physicalDevice = nullptr;
@@ -31,7 +39,8 @@ namespace Phusis
 		VkSurfaceKHR _surface = nullptr;
 		VkSwapchainKHR _swapchain = nullptr;
 		std::vector<VkImage> _buffers{};
-		VkCommandPool _commandPool = nullptr;
+		VkCommandPool _primaryCommandPool = nullptr;
+		std::vector<VkThreadData> _threads{std::thread::hardware_concurrency()};
 
 	private:
 		Window _window = nullptr;
@@ -40,11 +49,12 @@ namespace Phusis
 		Application(
 				const std::vector<std::string>& requiredLayers,
 				const std::vector<std::string>& requiredExtensions,
-				ApplicationMode mode) noexcept;
+				ApplicationMode mode,
+				uint32_t bufferCnt) noexcept;
 
 		~Application() noexcept;
 
-	public:
+	private:
 		bool VkValidateLayer() noexcept;
 
 		bool VkInitializeInstance() noexcept;
@@ -66,6 +76,11 @@ namespace Phusis
 		bool VkInitializeSwapchain() noexcept;
 
 		bool VkInitializeCommandPool() noexcept;
+
+		bool VkInitializeCommandBuffer() noexcept;
+
+	public:
+		int32_t InitializeComponents() noexcept;
 	};
 }
 
