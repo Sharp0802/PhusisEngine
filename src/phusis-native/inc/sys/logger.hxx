@@ -31,19 +31,27 @@ namespace sys
 
 	public:
 		loggerctx& operator<<(const std::string& str) noexcept;
+
 		loggerctx& operator<<(const char* cstr) noexcept;
+
 		loggerctx& operator<<(char ch) noexcept;
 
 		loggerctx& operator<<(int64_t i) noexcept;
+
 		loggerctx& operator<<(int32_t i) noexcept;
+
 		loggerctx& operator<<(int16_t i) noexcept;
 
 		loggerctx& operator<<(uint64_t i) noexcept;
+
 		loggerctx& operator<<(uint32_t i) noexcept;
+
 		loggerctx& operator<<(uint16_t i) noexcept;
 
 		loggerctx& operator<<(long double f) noexcept;
+
 		loggerctx& operator<<(double f) noexcept;
+
 		loggerctx& operator<<(float f) noexcept;
 
 		loggerctx& operator<<(bool b) noexcept;
@@ -55,6 +63,7 @@ namespace sys
 		loggerctx __head(loggerctrl ctrl, const char* file, int32_t line);
 	};
 
+	[[maybe_unused]]
 	static logger log;
 }
 

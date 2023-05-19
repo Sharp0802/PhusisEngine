@@ -8,6 +8,8 @@ set(BINDIR bin)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_CXX_STANDARD 17)
 
+add_compile_options(-Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic)
+
 find_package(Vulkan COMPONENTS dxc REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(glm REQUIRED)

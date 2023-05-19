@@ -15,7 +15,7 @@ namespace pre
 
 	public:
 		vec2() noexcept;
-		explicit vec2(T x, T y) noexcept;
+		explicit vec2(T cx, T cy) noexcept;
 		vec2(const vec2<T>& other) noexcept;
 
 	public:
@@ -39,8 +39,8 @@ pre::vec2<T>::vec2() noexcept
 }
 
 template<typename T>
-pre::vec2<T>::vec2(T x, T y) noexcept
-	: x(x), y(y)
+pre::vec2<T>::vec2(T cx, T cy) noexcept
+	: x(cx), y(cy)
 {
 }
 
