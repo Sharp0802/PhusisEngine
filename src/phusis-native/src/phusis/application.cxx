@@ -23,15 +23,34 @@ Phusis::Application::Application(
 
 Phusis::Application::~Application() noexcept
 {
-	sys::log.head(sys::INFO) << "clean up resources..." << sys::EOM;
+	ReleaseDeviceDependents();
+	ReleaseDeviceIndependents();
 
-	for (const auto& data: _threads)
-		vkDestroyCommandPool(_device, data.CommandPool, nullptr);
-	vkDestroyCommandPool(_device, _primaryCommandPool, nullptr);
-	vkDestroySwapchainKHR(_device, _swapchain, nullptr);
-	vkDestroySurfaceKHR(_instance, _surface, nullptr);
-	vkDestroyDevice(_device, nullptr);
-	vkDestroyInstance(_instance, nullptr);
+	sys::log.head(sys::INFO) << "closing application; see you next time..." << sys::EOM;
+}
+
+bool Phusis::Application::GLFWInitialize() noexcept
+{
+	if (!glfwInit())
+		return false;
+	return glfwVulkanSupported();
+}
+
+bool Phusis::Application::GLFWCreateWindow() noexcept
+{
+	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+
+	_window = glfwCreateWindow(640, 480, "Example Title", nullptr, nullptr);
+	if (!_window)
+	{
+		sys::log.head(sys::CRIT) << "could not create GLFW window" << sys::EOM;
+		return false;
+	}
+
+	sys::log.head(sys::INFO) << "GLFW window created" << sys::EOM;
+
+	return true;
 }
 
 bool Phusis::Application::VkValidateLayer() noexcept
@@ -69,6 +88,51 @@ bool Phusis::Application::VkValidateLayer() noexcept
 	if (failed)
 	{
 		sys::log.head(sys::CRIT) << "missing vulkan layer detected" << sys::EOM;
+	}
+
+	return !failed;
+}
+
+bool Phusis::Application::VkValidateExtension() noexcept
+{
+	uint32_t cExtension = 0;
+	vkEnumerateInstanceExtensionProperties(nullptr, &cExtension, nullptr);
+
+	std::vector<VkExtensionProperties> extensions(cExtension);
+	vkEnumerateInstanceExtensionProperties(nullptr, &cExtension, &extensions[0]);
+
+	for (const auto& extension: extensions)
+	{
+		sys::log.head(sys::VERB) << "EXT found: " << std::string(extension.extensionName) << sys::EOM;
+	}
+
+	auto* extensionNames = new std::string[cExtension];
+	for (uint32_t i = 0; i < cExtension; ++i)
+		extensionNames[i] = std::string(extensions[i].extensionName);
+
+	bool failed = false;
+	for (const auto& required: _requiredExtensions)
+	{
+		uint32_t i;
+		for (i = 0; i < cExtension; ++i)
+			if (extensionNames[i] == required)
+				break;
+		if (i == cExtension)
+		{
+			sys::log.head(sys::FAIL) << "EXT not matched: " << required << sys::EOM;
+			failed = true;
+		}
+		else
+		{
+			sys::log.head(sys::INFO) << "EXT matched: " << required << sys::EOM;
+		}
+	}
+
+	delete[] extensionNames;
+
+	if (failed)
+	{
+		sys::log.head(sys::CRIT) << "missing vulkan extension detected" << sys::EOM;
 	}
 
 	return !failed;
@@ -221,71 +285,7 @@ bool Phusis::Application::VkInitializeLogicalDevice() noexcept
 	return true;
 }
 
-bool Phusis::Application::VkValidateExtension() noexcept
-{
-	uint32_t cExtension = 0;
-	vkEnumerateInstanceExtensionProperties(nullptr, &cExtension, nullptr);
-
-	std::vector<VkExtensionProperties> extensions(cExtension);
-	vkEnumerateInstanceExtensionProperties(nullptr, &cExtension, &extensions[0]);
-
-	for (const auto& extension: extensions)
-	{
-		sys::log.head(sys::VERB) << "EXT found: " << std::string(extension.extensionName) << sys::EOM;
-	}
-
-	auto* extensionNames = new std::string[cExtension];
-	for (uint32_t i = 0; i < cExtension; ++i)
-		extensionNames[i] = std::string(extensions[i].extensionName);
-
-	bool failed = false;
-	for (const auto& required: _requiredExtensions)
-	{
-		uint32_t i;
-		for (i = 0; i < cExtension; ++i)
-			if (extensionNames[i] == required)
-				break;
-		if (i == cExtension)
-		{
-			sys::log.head(sys::FAIL) << "EXT not matched: " << required << sys::EOM;
-			failed = true;
-		}
-		else
-		{
-			sys::log.head(sys::INFO) << "EXT matched: " << required << sys::EOM;
-		}
-	}
-
-	delete[] extensionNames;
-
-	if (failed)
-	{
-		sys::log.head(sys::CRIT) << "missing vulkan extension detected" << sys::EOM;
-	}
-
-	return !failed;
-}
-
-bool Phusis::Application::GLFWInitialize() noexcept
-{
-	if (!glfwInit())
-		return false;
-	return glfwVulkanSupported();
-}
-
-bool Phusis::Application::GLFWCreateWindow() noexcept
-{
-	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-
-	_window = glfwCreateWindow(640, 480, "Example Title", nullptr, nullptr);
-
-	sys::log.head(sys::INFO) << "GLFW window created" << sys::EOM;
-
-	return true;
-}
-
-bool Phusis::Application::GLFWCreateSurface() noexcept
+bool Phusis::Application::VkCreateSurface() noexcept
 {
 	VkSurfaceKHR surface;
 	VkResult err = glfwCreateWindowSurface(Instance, _window, nullptr, &surface);
@@ -369,7 +369,7 @@ bool Phusis::Application::VkValidateSwapchain() noexcept
 	return true;
 }
 
-bool Phusis::Application::VkInitializeSwapchain() noexcept
+bool Phusis::Application::VkInitializeSurface() noexcept
 {
 	VkSurfaceCapabilitiesKHR capabilities;
 	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(PhysicalDevice, Surface, &capabilities);
@@ -391,29 +391,36 @@ bool Phusis::Application::VkInitializeSwapchain() noexcept
 			matched = true;
 		}
 	}
-	if (matched)
-	{
-		sys::log.head(sys::INFO) << "SRF-FMT matched: " << fmt.format << sys::EOM;
-	}
-	else
+	if (!matched)
 	{
 		sys::log.head(sys::CRIT) << "SRF-FMT not matched: " << fmt.format << sys::EOM;
 		return false;
 	}
 
+	sys::log.head(sys::INFO) << "SRF-FMT matched: " << fmt.format << sys::EOM;
+	_surfaceFormat = fmt;
+	_surfaceCapabilities = capabilities;
+
+	return true;
+}
+
+bool Phusis::Application::VkInitializeSwapchain() noexcept
+{
 	VkSwapchainCreateInfoKHR info{};
 	info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 	info.surface = Surface;
 	info.minImageCount = 2;
-	info.imageFormat = fmt.format;
-	info.imageColorSpace = fmt.colorSpace;
-	info.imageExtent = capabilities.currentExtent;
+	info.imageFormat = _surfaceFormat.format;
+	info.imageColorSpace = _surfaceFormat.colorSpace;
+	info.imageExtent = _surfaceCapabilities.currentExtent;
 	info.imageArrayLayers = 1;
 	info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 	info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	info.preTransform = capabilities.currentTransform;
+	info.preTransform = _surfaceCapabilities.currentTransform;
 	info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 	info.presentMode = _presentMode;
+
+	_swapchainInfo = info;
 
 	VkSwapchainKHR swapchain;
 	VkResult result = vkCreateSwapchainKHR(Device, &info, nullptr, &swapchain);
@@ -423,6 +430,15 @@ bool Phusis::Application::VkInitializeSwapchain() noexcept
 		return false;
 	}
 
+	Swapchain = swapchain;
+
+	sys::log.head(sys::INFO) << "swapchain initialized" << sys::EOM;
+
+	return true;
+}
+
+bool Phusis::Application::VkInitializeImageViews() noexcept
+{
 	uint32_t cBuffer;
 	vkGetSwapchainImagesKHR(Device, Swapchain, &cBuffer, nullptr);
 
@@ -433,12 +449,45 @@ bool Phusis::Application::VkInitializeSwapchain() noexcept
 	}
 
 	std::vector<VkImage> buffers(cBuffer);
-	vkGetSwapchainImagesKHR(_device, swapchain, &cBuffer, &buffers[0]);
+	vkGetSwapchainImagesKHR(Device, Swapchain, &cBuffer, &buffers[0]);
 
-	_swapchain = swapchain;
-	_buffers = buffers;
+	std::vector<VkImageView> views(cBuffer);
 
-	sys::log.head(sys::INFO) << "swapchain initialized" << sys::EOM;
+	VkImageViewCreateInfo viewInfo{};
+	viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	viewInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+	viewInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+	viewInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+	viewInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+	viewInfo.format = _surfaceFormat.format;
+	viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	viewInfo.subresourceRange.baseMipLevel = 0;
+	viewInfo.subresourceRange.levelCount = 1;
+	viewInfo.subresourceRange.baseArrayLayer = 0;
+	viewInfo.subresourceRange.layerCount = _requiredLayers.size();
+	viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+
+	bool failed = false;
+	for (uint32_t i = 0; i < cBuffer; ++i)
+	{
+		viewInfo.image = buffers[i];
+		VkResult result = vkCreateImageView(Device, &viewInfo, nullptr, &views[i]);
+		if (result != VK_SUCCESS)
+		{
+			failed = true;
+			continue;
+		}
+	}
+	if (failed)
+	{
+		sys::log.head(sys::CRIT) << "could not create image-view from image" << sys::EOM;
+		return false;
+	}
+
+	sys::log.head(sys::INFO) << "image-view created from swapchain" << sys::EOM;
+
+	_swapchainBuffers = buffers;
+	_swapchainViews = views;
 
 	return true;
 }
@@ -454,7 +503,7 @@ bool Phusis::Application::VkInitializeCommandPool() noexcept
 	VkResult result = vkCreateCommandPool(Device, &primaryInfo, nullptr, &pool);
 	if (result != VK_SUCCESS)
 	{
-		sys::log.head(sys::CRIT) << "cannot create primary command-pool" << sys::EOM;
+		sys::log.head(sys::CRIT) << "could not create primary command-pool" << sys::EOM;
 		return false;
 	}
 
@@ -474,7 +523,7 @@ bool Phusis::Application::VkInitializeCommandPool() noexcept
 		VkResult localResult = vkCreateCommandPool(Device, &info, nullptr, &localPool);
 		if (localResult != VK_SUCCESS)
 		{
-			sys::log.head(sys::FAIL) << "cannot create secondary command-pool" << sys::EOM;
+			sys::log.head(sys::FAIL) << "could not create secondary command-pool" << sys::EOM;
 			failed = true;
 			continue;
 		}
@@ -483,7 +532,7 @@ bool Phusis::Application::VkInitializeCommandPool() noexcept
 	}
 	if (failed)
 	{
-		sys::log.head(sys::CRIT) << "cannot initialize secondary command-pool set" << sys::EOM;
+		sys::log.head(sys::CRIT) << "could not initialize secondary command-pool set" << sys::EOM;
 		return false;
 	}
 
@@ -494,69 +543,380 @@ bool Phusis::Application::VkInitializeCommandPool() noexcept
 
 bool Phusis::Application::VkInitializeCommandBuffer() noexcept
 {
+	VkCommandBufferAllocateInfo info{};
+	info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	info.commandBufferCount = 1;
+	info.commandPool = PrimaryCommandPool;
+	info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+
+	VkCommandBuffer buffer;
+	VkResult result = vkAllocateCommandBuffers(Device, &info, &buffer);
+	if (result != VK_SUCCESS)
+	{
+		sys::log.head(sys::CRIT) << "could not create primary command-buffer" << sys::EOM;
+		return false;
+	}
+	PrimaryCommandBuffer = buffer;
+
 	bool failed = false;
 	for (auto& data: _threads)
 	{
-		VkCommandBufferAllocateInfo info{};
-		info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-		info.commandBufferCount = _bufferCnt;
 		info.commandPool = data.CommandPool;
 		info.level = VK_COMMAND_BUFFER_LEVEL_SECONDARY;
 
 		result = vkAllocateCommandBuffers(Device, &info, &buffer);
-		VkResult result = vkAllocateCommandBuffers(_device, &info, &buffers[0]);
 		if (result != VK_SUCCESS)
 		{
-			sys::log.head(sys::FAIL) << "cannot create command-buffer" << sys::EOM;
+			sys::log.head(sys::FAIL) << "could not create secondary command-buffer" << sys::EOM;
 			failed = true;
 			continue;
 		}
 
-		data.CommandBuffer = buffers;
+		data.CommandBuffer = buffer;
 	}
 	if (failed)
 	{
-		sys::log.head(sys::CRIT) << "cannot initialize command-buffer set" << sys::EOM;
+		sys::log.head(sys::CRIT) << "could not initialize command-buffer set" << sys::EOM;
 		return false;
 	}
 
 	sys::log.head(sys::INFO) << "command-buffer set initialized" << sys::EOM;
 
+	return true;
+}
+
+bool Phusis::Application::VkInitializeRenderPass() noexcept
+{
+	std::array<VkFormat, 3> formats = {
+			VK_FORMAT_D32_SFLOAT_S8_UINT,
+			VK_FORMAT_D24_UNORM_S8_UINT,
+			VK_FORMAT_D16_UNORM_S8_UINT
+	};
+
+	VkFormat depthFormat = VK_FORMAT_UNDEFINED;
+	for (const auto& format : formats)
+	{
+		VkFormatProperties prop;
+		vkGetPhysicalDeviceFormatProperties(PhysicalDevice, format, &prop);
+		if (prop.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT)
+		{
+			depthFormat = format;
+			sys::log.head(sys::INFO) << "stencil-depth format found: " << format << sys::EOM;
+			break;
+		}
+	}
+	if (depthFormat == VK_FORMAT_UNDEFINED)
+	{
+		sys::log.head(sys::CRIT) << "supported stencil-depth format not found" << sys::EOM;
+		return false;
+	}
+
+	std::array<VkAttachmentDescription, 2> desc{};
+
+	// color desc
+	desc[0].format = _swapchainInfo.imageFormat;
+	desc[0].samples = VK_SAMPLE_COUNT_1_BIT;
+	desc[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	desc[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	desc[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	desc[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	desc[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	desc[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+	// depth desc
+	desc[0].format = depthFormat;
+	desc[0].samples = VK_SAMPLE_COUNT_1_BIT;
+	desc[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	desc[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	desc[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	desc[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	desc[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	desc[0].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	std::array<VkAttachmentReference, 2> ref{};
+
+	// color ref
+	ref[0].attachment = 0;
+	ref[0].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	// depth ref
+	ref[1].attachment = 0;
+	ref[1].layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	VkSubpassDescription subpass{};
+	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpass.colorAttachmentCount = 1;
+	subpass.pColorAttachments = &ref[0];
+	subpass.pDepthStencilAttachment = &ref[1];
+	subpass.inputAttachmentCount = 0;
+	subpass.pInputAttachments = nullptr;
+	subpass.preserveAttachmentCount = 0;
+	subpass.pPreserveAttachments = nullptr;
+	subpass.pResolveAttachments = nullptr;
+
+	// for layout transitions
+	std::array<VkSubpassDependency, 2> deps{};
+
+	deps[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+	deps[0].dstSubpass = 0;
+	deps[0].srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+	deps[0].dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+	deps[0].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+	deps[0].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+	deps[0].dependencyFlags = 0;
+
+	deps[1].srcSubpass = VK_SUBPASS_EXTERNAL;
+	deps[1].dstSubpass = 0;
+	deps[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	deps[1].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	deps[1].srcAccessMask = 0;
+	deps[1].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
+	deps[1].dependencyFlags = 0;
+
+	VkRenderPassCreateInfo info{};
+	info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+	info.attachmentCount = desc.size();
+	info.pAttachments = desc.data();
+	info.subpassCount = 1;
+	info.pSubpasses = &subpass;
+	info.dependencyCount = deps.size();
+	info.pDependencies = deps.data();
+
+	_defaultRenderPassInfo = info;
+
+	VkRenderPass renderpass;
+	VkResult result = vkCreateRenderPass(Device, &info, nullptr, &renderpass);
+	RenderPass = renderpass;
+
+	if (result != VK_SUCCESS)
+	{
+		sys::log.head(sys::CRIT) << "could not create default render-pass" << sys::EOM;
+		return false;
+	}
+
+	sys::log.head(sys::INFO) << "default render-pass created" << sys::EOM;
+
+	return true;
+}
+
+bool Phusis::Application::VkInitializeFramebuffers() noexcept
+{
+	int32_t w, h;
+	glfwGetWindowSize(_window, &w, &h);
+
+	VkFramebufferCreateInfo info{};
+	info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+	info.pNext = nullptr;
+	info.renderPass = RenderPass;
+	info.attachmentCount = _defaultRenderPassInfo.attachmentCount;
+	info.width = w;
+	info.height = h;
+	info.layers = _requiredLayers.size();
+
+	std::vector<VkFramebuffer> framebuffers{_swapchainBuffers.size()};
+
+	bool failed = false;
+	for (uint32_t i = 0; i < _swapchainBuffers.size(); ++i)
+	{
+		info.pAttachments = &_swapchainViews[i];
+		VkResult result = vkCreateFramebuffer(Device, &info, nullptr, &framebuffers[i]);
+		if (result != VK_SUCCESS)
+		{
+			sys::log.head(sys::FAIL) << "could not create framebuffer" << sys::EOM;
+			failed = true;
+		}
+	}
+	if (failed)
+	{
+		sys::log.head(sys::CRIT) << "could not create framebuffer set" << sys::EOM;
+		return false;
+	}
+
+	_framebuffers = framebuffers;
+
+	sys::log.head(sys::INFO) << "framebuffer set created" << sys::EOM;
+
+	return true;
+}
+
+bool Phusis::Application::UpdateCommandBuffers(VkFramebuffer buffer) noexcept
+{
+	int32_t w, h;
+	glfwGetWindowSize(_window, &w, &h);
+
+	VkCommandBufferBeginInfo bufInfo{};
+	bufInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+	VkClearColorValue color{};
+	color.uint32[0] = 1; // B
+	color.uint32[1] = 1; // G
+	color.uint32[2] = 1; // R
+	color.uint32[3] = 0; // A
+
+	VkClearValue clear[2];
+	clear[0].color = color;
+	clear[1].depthStencil = {1.0f, 0};
+
+	VkRenderPassBeginInfo renderpassInfo{};
+	renderpassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	renderpassInfo.renderPass = RenderPass;
+	renderpassInfo.renderArea.offset.x = 0;
+	renderpassInfo.renderArea.offset.y = 0;
+	renderpassInfo.renderArea.extent.width = w;
+	renderpassInfo.renderArea.extent.height = h;
+	renderpassInfo.clearValueCount = 2;
+	renderpassInfo.pClearValues = clear;
+	renderpassInfo.framebuffer = buffer;
+
+	vkBeginCommandBuffer(PrimaryCommandBuffer, &bufInfo);
+	vkCmdBeginRenderPass(PrimaryCommandBuffer, &renderpassInfo, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
+
+	VkCommandBufferInheritanceInfo info{};
+	info.renderPass = RenderPass;
+	info.framebuffer = buffer;
+
+	// update secondary
+	// render thread
+
+	std::vector<VkCommandBuffer> buffers{_threads.size()};
+	for (uint32_t i = 0; i < _threads.size(); ++i)
+		buffers[i] = _threads[i].CommandBuffer;
+
+	vkCmdExecuteCommands(PrimaryCommandBuffer, buffers.size(), buffers.data());
+	vkCmdEndRenderPass(PrimaryCommandBuffer);
+
+	VkResult result = vkEndCommandBuffer(PrimaryCommandBuffer);
+	if (result != VK_SUCCESS)
+	{
+		sys::log.head(sys::WARN) << "could not end primary command-buffer; output can be incorrect" << sys::EOM;
+		return false;
+	}
+
+	sys::log.head(sys::INFO) << "command-buffer updated" << sys::EOM;
 	return false;
+}
+
+bool Phusis::Application::VkInitializePipelineLayout() noexcept
+{
+	VkPushConstantRange range{};
+	range.size = sizeof(ThreadPushConstantBlock);
+	range.offset = 0;
+	range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+	VkPipelineLayoutCreateInfo info{};
+	info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	info.setLayoutCount = 0;
+	info.pSetLayouts = nullptr;
+	info.pushConstantRangeCount = 1;
+	info.pPushConstantRanges = &range;
+
+	VkPipelineLayout layout;
+	VkResult result = vkCreatePipelineLayout(Device, &info, nullptr, &layout);
+	if (result != VK_SUCCESS)
+	{
+		sys::log.head(sys::CRIT) << "could not create vulkan pipeline layout" << sys::EOM; 
+	}
+
+	PipelineLayout = layout;
+
+	return false;
+}
+
+int32_t Phusis::Application::InitializeDeviceDependents() noexcept
+{
+	sys::log.head(sys::INFO) << "initializing device-dependants" << sys::EOM;
+
+	if (!VkCreateSurface())
+		return 8;
+	if (!VkValidateSwapchain())
+		return 9;
+	if (!VkInitializeSurface())
+		return 10;
+	if (!VkInitializeSwapchain())
+		return 11;
+	if (!VkInitializeImageViews())
+		return 12;
+	if (!VkInitializeCommandPool())
+		return 13;
+	if (!VkInitializeCommandBuffer())
+		return 14;
+	if (!VkInitializeRenderPass())
+		return 15;
+	if (!VkInitializeFramebuffers())
+		return 16;
+	if (!VkInitializePipelineLayout())
+		return 17;
+
+	sys::log.head(sys::INFO) << "" << sys::EOM;
+
+	return 0;
+}
+
+void Phusis::Application::ReleaseDeviceDependents() noexcept
+{
+	sys::log.head(sys::INFO) << "clean up device-dependent resources..." << sys::EOM;
+
+	for (const auto& buffer : _framebuffers)
+		vkDestroyFramebuffer(Device, buffer, nullptr);
+	vkDestroyRenderPass(Device, RenderPass, nullptr);
+	for (const auto& data: _threads)
+		vkDestroyCommandPool(Device, data.CommandPool, nullptr);
+	vkDestroyCommandPool(Device, PrimaryCommandPool, nullptr);
+	for (const auto& view : _swapchainViews)
+		vkDestroyImageView(Device, view, nullptr);
+	vkDestroySwapchainKHR(Device, Swapchain, nullptr);
+	vkDestroySurfaceKHR(Instance, Surface, nullptr);
+}
+
+void Phusis::Application::ReleaseDeviceIndependents() noexcept
+{
+	sys::log.head(sys::INFO) << "clean up device-independent resources..." << sys::EOM;
+
+	vkDestroyDevice(Device, nullptr);
+	vkDestroyInstance(Instance, nullptr);
+
+	glfwDestroyWindow(_window);
+	glfwTerminate();
 }
 
 int32_t Phusis::Application::InitializeComponents() noexcept
 {
 	sys::log.head(sys::DBUG) << "\n=== SYSTEM CONFIGURATION ===\n"
 							 << "Hardware Concurrency : " << _threads.size() << "\n"
-							 << "CommandBuffer Count  : " << _threads.size() * _bufferCnt << sys::EOM;
+							 << sys::EOM;
 
-	if (!VkValidateLayer())
-		return 1;
-	if (!VkValidateExtension())
-		return 2;
-	if (!VkInitializeInstance())
-		return 3;
-	if (!VkInitializePhysicalDevice())
-		return 4;
-	if (!VkInitializeDeviceQueue())
-		return 5;
 	if (!GLFWInitialize())
-		return 6;
+		return 1;
 	if (!GLFWCreateWindow())
+		return 2;
+	if (!VkValidateLayer())
+		return 3;
+	if (!VkValidateExtension())
+		return 4;
+	if (!VkInitializeInstance())
+		return 5;
+	if (!VkInitializePhysicalDevice())
+		return 6;
+	if (!VkInitializeLogicalDevice())
 		return 7;
-	if (!GLFWCreateSurface())
-		return 8;
-	if (!VkValidateSwapchain())
-		return 9;
-	if (!VkInitializeSwapchain())
-		return 10;
-	if (!VkInitializeCommandPool())
-		return 11;
-	if (!VkInitializeCommandBuffer())
-		return 12;
+
+	int32_t r = InitializeDeviceDependents();
+	if (r)
+		return r;
 
 	sys::log.head(sys::INFO) << "complete operation successfully" << sys::EOM;
 
 	return 0;
 }
+
+int32_t Phusis::Application::Run() noexcept
+{
+	while (!glfwWindowShouldClose(_window))
+	{
+		glfwPollEvents();
+	}
+
+	return 0;
+}
+
+

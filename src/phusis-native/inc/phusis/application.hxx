@@ -14,11 +14,11 @@ namespace Phusis
 
 	using Window = GLFWwindow*;
 
-	class VkThreadData
+	class ThreadData
 	{
 	public:
 		VkCommandPool CommandPool;
-		std::vector<VkCommandBuffer> CommandBuffer;
+		VkCommandBuffer CommandBuffer;
 	};
 
 	class Application
@@ -69,38 +69,56 @@ namespace Phusis
 		Application(
 				const std::vector<std::string>& requiredLayers,
 				const std::vector<std::string>& requiredExtensions,
-				ApplicationMode mode,
-				uint32_t bufferCnt) noexcept;
+				ApplicationMode mode) noexcept;
 
 		~Application() noexcept;
 
 	private:
+		bool GLFWInitialize() noexcept;
+
+		bool GLFWCreateWindow() noexcept;
+
 		bool VkValidateLayer() noexcept;
+
+		bool VkValidateExtension() noexcept;
 
 		bool VkInitializeInstance() noexcept;
 
 		bool VkInitializePhysicalDevice() noexcept;
 
-		bool VkInitializeDeviceQueue() noexcept;
+		bool VkInitializeLogicalDevice() noexcept;
 
-		bool VkValidateExtension() noexcept;
-
-		bool GLFWInitialize() noexcept;
-
-		bool GLFWCreateWindow() noexcept;
-
-		bool GLFWCreateSurface() noexcept;
+		bool VkCreateSurface() noexcept;
 
 		bool VkValidateSwapchain() noexcept;
 
+		bool VkInitializeSurface() noexcept;
+
 		bool VkInitializeSwapchain() noexcept;
+
+		bool VkInitializeImageViews() noexcept;
 
 		bool VkInitializeCommandPool() noexcept;
 
 		bool VkInitializeCommandBuffer() noexcept;
 
+		bool VkInitializeRenderPass() noexcept;
+
+		bool VkInitializeFramebuffers() noexcept;
+
+		bool VkInitializePipelineLayout() noexcept;
+
+		bool UpdateCommandBuffers(VkFramebuffer buffer) noexcept;
+
+	private:
+		int32_t InitializeDeviceDependents() noexcept;
+		void ReleaseDeviceDependents() noexcept;
+		void ReleaseDeviceIndependents() noexcept;
+
 	public:
 		int32_t InitializeComponents() noexcept;
+
+		int32_t Run() noexcept;
 	};
 }
 

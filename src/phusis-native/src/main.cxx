@@ -25,7 +25,11 @@ int32_t vk_main()
 	const std::vector<std::string> layers = { "VK_LAYER_KHRONOS_validation" };
 	const std::vector<std::string> exts = {};
 
-	Phusis::Application app(layers, exts, Phusis::ApplicationMode::Quality, 10);
+	Phusis::Application app(layers, exts, Phusis::ApplicationMode::Quality);
 
-	return app.InitializeComponents();
+	int32_t r = app.InitializeComponents();
+	if (r)
+		return r;
+	r = app.Run();
+	return r;
 }
