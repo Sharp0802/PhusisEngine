@@ -6,13 +6,11 @@
 Phusis::Application::Application(
 		const std::vector<std::string>& requiredLayers,
 		const std::vector<std::string>& requiredExtensions,
-		ApplicationMode mode,
-		uint32_t bufferCnt) noexcept:
+		ApplicationMode mode) noexcept:
 		_requiredLayers(requiredLayers),
-		_mode(mode),
-		_bufferCnt(bufferCnt)
+		_mode(mode)
 {
-	// do NOT use glfwGetRequiredInstanceExtensions : it doesn't work
+	// do NOT use glfwGetRequiredInstanceExtensions : it's buggy and doesn't work
 	_requiredExtensions = std::vector<std::string>(requiredExtensions.size() + 3);
 	_requiredExtensions.assign(requiredExtensions.begin(), requiredExtensions.end());
 	_requiredExtensions.emplace_back("VK_KHR_surface");
@@ -97,7 +95,7 @@ bool Phusis::Application::VkInitializeInstance() noexcept
 
 	VkInstance instance;
 	VkResult result = vkCreateInstance(&create_info, nullptr, &instance);
-	_instance = instance;
+	Instance = instance;
 
 	return result == VK_SUCCESS;
 }
@@ -105,10 +103,10 @@ bool Phusis::Application::VkInitializeInstance() noexcept
 bool Phusis::Application::VkInitializePhysicalDevice() noexcept
 {
 	uint32_t cDevice = 0;
-	vkEnumeratePhysicalDevices(_instance, &cDevice, nullptr);
+	vkEnumeratePhysicalDevices(Instance, &cDevice, nullptr);
 
 	std::vector<VkPhysicalDevice> physicalDevices(cDevice);
-	vkEnumeratePhysicalDevices(_instance, &cDevice, &physicalDevices[0]);
+	vkEnumeratePhysicalDevices(Instance, &cDevice, &physicalDevices[0]);
 
 	for (const auto& device: physicalDevices)
 	{
@@ -119,7 +117,7 @@ bool Phusis::Application::VkInitializePhysicalDevice() noexcept
 	}
 
 	VkPhysicalDevice physicalDevice = physicalDevices[0];
-	_physicalDevice = physicalDevice;
+	PhysicalDevice = physicalDevice;
 
 	VkPhysicalDeviceProperties physicalProperties{};
 	vkGetPhysicalDeviceProperties(physicalDevice, &physicalProperties);
@@ -129,13 +127,13 @@ bool Phusis::Application::VkInitializePhysicalDevice() noexcept
 	return true;
 }
 
-bool Phusis::Application::VkInitializeDeviceQueue() noexcept
+bool Phusis::Application::VkInitializeLogicalDevice() noexcept
 {
 	uint32_t cProperty = 0;
-	vkGetPhysicalDeviceQueueFamilyProperties(_physicalDevice, &cProperty, nullptr);
+	vkGetPhysicalDeviceQueueFamilyProperties(PhysicalDevice, &cProperty, nullptr);
 
 	std::vector<VkQueueFamilyProperties> properties(cProperty);
-	vkGetPhysicalDeviceQueueFamilyProperties(_physicalDevice, &cProperty, &properties[0]);
+	vkGetPhysicalDeviceQueueFamilyProperties(PhysicalDevice, &cProperty, &properties[0]);
 
 	uint32_t queueFamilyIdx = UINT32_MAX;
 	for (uint32_t i = 0; i < properties.size(); ++i)
@@ -168,10 +166,10 @@ bool Phusis::Application::VkInitializeDeviceQueue() noexcept
 	};
 
 	uint32_t cExt;
-	vkEnumerateDeviceExtensionProperties(_physicalDevice, nullptr, &cExt, nullptr);
+	vkEnumerateDeviceExtensionProperties(PhysicalDevice, nullptr, &cExt, nullptr);
 
 	std::vector<VkExtensionProperties> extensions(cExt);
-	vkEnumerateDeviceExtensionProperties(_physicalDevice, nullptr, &cExt, &extensions[0]);
+	vkEnumerateDeviceExtensionProperties(PhysicalDevice, nullptr, &cExt, &extensions[0]);
 
 	bool failed = false;
 	for (const auto& e: ext)
@@ -204,7 +202,7 @@ bool Phusis::Application::VkInitializeDeviceQueue() noexcept
 	deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;
 
 	VkDevice device;
-	VkResult result = vkCreateDevice(_physicalDevice, &deviceCreateInfo, nullptr, &device);
+	VkResult result = vkCreateDevice(PhysicalDevice, &deviceCreateInfo, nullptr, &device);
 	if (result != VK_SUCCESS)
 	{
 		sys::log.head(sys::CRIT) << "failed to create device" << sys::EOM;
@@ -214,8 +212,8 @@ bool Phusis::Application::VkInitializeDeviceQueue() noexcept
 	VkQueue queue;
 	vkGetDeviceQueue(device, queueFamilyIdx, 0, &queue);
 
-	_device = device;
-	_queue = queue;
+	Device = device;
+	Queue = queue;
 	_queueFamilyIdx = queueFamilyIdx;
 
 	sys::log.head(sys::INFO) << "vulkan device & queue has been ready" << sys::EOM;
@@ -290,7 +288,7 @@ bool Phusis::Application::GLFWCreateWindow() noexcept
 bool Phusis::Application::GLFWCreateSurface() noexcept
 {
 	VkSurfaceKHR surface;
-	VkResult err = glfwCreateWindowSurface(_instance, _window, nullptr, &surface);
+	VkResult err = glfwCreateWindowSurface(Instance, _window, nullptr, &surface);
 	if (err)
 	{
 		sys::log.head(sys::CRIT) << "cannot create vulkan surface: " << err << sys::EOM;
@@ -299,14 +297,14 @@ bool Phusis::Application::GLFWCreateSurface() noexcept
 
 	sys::log.head(sys::INFO) << "vulkan surface created" << sys::EOM;
 
-	_surface = surface;
+	Surface = surface;
 	return true;
 }
 
 bool Phusis::Application::VkValidateSwapchain() noexcept
 {
 	VkBool32 supported;
-	vkGetPhysicalDeviceSurfaceSupportKHR(_physicalDevice, _queueFamilyIdx, _surface, &supported);
+	vkGetPhysicalDeviceSurfaceSupportKHR(PhysicalDevice, _queueFamilyIdx, Surface, &supported);
 	if (!supported)
 	{
 		sys::log.head(sys::CRIT) << "selected physical device doesn't support surface" << sys::EOM;
@@ -314,10 +312,10 @@ bool Phusis::Application::VkValidateSwapchain() noexcept
 	}
 
 	uint32_t cModes;
-	vkGetPhysicalDeviceSurfacePresentModesKHR(_physicalDevice, _surface, &cModes, nullptr);
+	vkGetPhysicalDeviceSurfacePresentModesKHR(PhysicalDevice, Surface, &cModes, nullptr);
 
 	std::vector<VkPresentModeKHR> modes(cModes);
-	vkGetPhysicalDeviceSurfacePresentModesKHR(_physicalDevice, _surface, &cModes, &modes[0]);
+	vkGetPhysicalDeviceSurfacePresentModesKHR(PhysicalDevice, Surface, &cModes, &modes[0]);
 
 	static const std::array<std::string, 7> modeMap = {
 			"VK_PRESENT_MODE_IMMEDIATE_KHR",
@@ -374,13 +372,13 @@ bool Phusis::Application::VkValidateSwapchain() noexcept
 bool Phusis::Application::VkInitializeSwapchain() noexcept
 {
 	VkSurfaceCapabilitiesKHR capabilities;
-	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(_physicalDevice, _surface, &capabilities);
+	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(PhysicalDevice, Surface, &capabilities);
 
 	uint32_t cFormat;
-	vkGetPhysicalDeviceSurfaceFormatsKHR(_physicalDevice, _surface, &cFormat, nullptr);
+	vkGetPhysicalDeviceSurfaceFormatsKHR(PhysicalDevice, Surface, &cFormat, nullptr);
 
 	std::vector<VkSurfaceFormatKHR> formats(cFormat);
-	vkGetPhysicalDeviceSurfaceFormatsKHR(_physicalDevice, _surface, &cFormat, &formats[0]);
+	vkGetPhysicalDeviceSurfaceFormatsKHR(PhysicalDevice, Surface, &cFormat, &formats[0]);
 
 	bool matched;
 	VkSurfaceFormatKHR fmt;
@@ -405,7 +403,7 @@ bool Phusis::Application::VkInitializeSwapchain() noexcept
 
 	VkSwapchainCreateInfoKHR info{};
 	info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-	info.surface = _surface;
+	info.surface = Surface;
 	info.minImageCount = 2;
 	info.imageFormat = fmt.format;
 	info.imageColorSpace = fmt.colorSpace;
@@ -418,7 +416,7 @@ bool Phusis::Application::VkInitializeSwapchain() noexcept
 	info.presentMode = _presentMode;
 
 	VkSwapchainKHR swapchain;
-	VkResult result = vkCreateSwapchainKHR(_device, &info, nullptr, &swapchain);
+	VkResult result = vkCreateSwapchainKHR(Device, &info, nullptr, &swapchain);
 	if (result != VK_SUCCESS)
 	{
 		sys::log.head(sys::CRIT) << "cannot create vulkan swapchain" << sys::EOM;
@@ -426,7 +424,7 @@ bool Phusis::Application::VkInitializeSwapchain() noexcept
 	}
 
 	uint32_t cBuffer;
-	vkGetSwapchainImagesKHR(_device, swapchain, &cBuffer, nullptr);
+	vkGetSwapchainImagesKHR(Device, Swapchain, &cBuffer, nullptr);
 
 	if (cBuffer < 2)
 	{
@@ -453,14 +451,14 @@ bool Phusis::Application::VkInitializeCommandPool() noexcept
 	primaryInfo.queueFamilyIndex = _queueFamilyIdx;
 
 	VkCommandPool pool;
-	VkResult result = vkCreateCommandPool(_device, &primaryInfo, nullptr, &pool);
+	VkResult result = vkCreateCommandPool(Device, &primaryInfo, nullptr, &pool);
 	if (result != VK_SUCCESS)
 	{
 		sys::log.head(sys::CRIT) << "cannot create primary command-pool" << sys::EOM;
 		return false;
 	}
 
-	_primaryCommandPool = pool;
+	PrimaryCommandPool = pool;
 
 	sys::log.head(sys::INFO) << "primary command-pool created" << sys::EOM;
 
@@ -473,7 +471,7 @@ bool Phusis::Application::VkInitializeCommandPool() noexcept
 		info.queueFamilyIndex = _queueFamilyIdx;
 
 		VkCommandPool localPool;
-		VkResult localResult = vkCreateCommandPool(_device, &info, nullptr, &localPool);
+		VkResult localResult = vkCreateCommandPool(Device, &info, nullptr, &localPool);
 		if (localResult != VK_SUCCESS)
 		{
 			sys::log.head(sys::FAIL) << "cannot create secondary command-pool" << sys::EOM;
@@ -505,7 +503,7 @@ bool Phusis::Application::VkInitializeCommandBuffer() noexcept
 		info.commandPool = data.CommandPool;
 		info.level = VK_COMMAND_BUFFER_LEVEL_SECONDARY;
 
-		std::vector<VkCommandBuffer> buffers{_bufferCnt};
+		result = vkAllocateCommandBuffers(Device, &info, &buffer);
 		VkResult result = vkAllocateCommandBuffers(_device, &info, &buffers[0]);
 		if (result != VK_SUCCESS)
 		{

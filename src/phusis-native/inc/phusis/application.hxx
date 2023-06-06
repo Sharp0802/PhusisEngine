@@ -27,20 +27,40 @@ namespace Phusis
 		std::vector<std::string> _requiredLayers;
 		std::vector<std::string> _requiredExtensions;
 		ApplicationMode _mode;
-		uint32_t _bufferCnt;
+
+	public:
+		uint32_t Width, Height;
+
+		VkPhysicalDevice PhysicalDevice = nullptr;
+		VkDevice Device = nullptr;
+		VkInstance Instance = nullptr;
+		VkSurfaceKHR Surface = nullptr;
+		VkSwapchainKHR Swapchain = nullptr;
+		VkQueue Queue = nullptr;
+		VkCommandPool PrimaryCommandPool = nullptr;
+		VkCommandBuffer PrimaryCommandBuffer = nullptr;
+		VkRenderPass RenderPass = nullptr;
+		VkPipelineLayout PipelineLayout = nullptr;
+		VkPipeline Pipeline = nullptr;
+
+		glm::mat4 Projection, View;
 
 	private:
-		VkPhysicalDevice _physicalDevice = nullptr;
-		VkDevice _device = nullptr;
-		uint32_t _queueFamilyIdx = 0;
 		VkPresentModeKHR _presentMode = VK_PRESENT_MODE_FIFO_KHR;
-		VkQueue _queue = nullptr;
-		VkInstance _instance = nullptr;
-		VkSurfaceKHR _surface = nullptr;
-		VkSwapchainKHR _swapchain = nullptr;
-		std::vector<VkImage> _buffers{};
-		VkCommandPool _primaryCommandPool = nullptr;
-		std::vector<VkThreadData> _threads{std::thread::hardware_concurrency()};
+
+		uint32_t _queueFamilyIdx = 0;
+
+		std::vector<VkImage> _swapchainBuffers{};
+		std::vector<VkImageView> _swapchainViews{};
+		std::vector<ThreadData> _threads{ std::thread::hardware_concurrency()};
+
+		std::vector<VkFramebuffer> _framebuffers{};
+
+	private:
+		VkSurfaceFormatKHR _surfaceFormat{};
+		VkSurfaceCapabilitiesKHR _surfaceCapabilities{};
+		VkSwapchainCreateInfoKHR _swapchainInfo{};
+		VkRenderPassCreateInfo _defaultRenderPassInfo{};
 
 	private:
 		Window _window = nullptr;
