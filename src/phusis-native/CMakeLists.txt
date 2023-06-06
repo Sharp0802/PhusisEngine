@@ -20,7 +20,7 @@ file(GLOB_RECURSE INCs *.hxx)
 add_executable(phusis ${SRCs} ${INCs})
 
 target_compile_definitions(phusis PRIVATE SRCDIR="${CMAKE_SOURCE_DIR}")
-target_include_directories(phusis PRIVATE ${INCDIR})
+target_include_directories(phusis PRIVATE ${INCDIR} ${GLM_INCLUDE_DIRS})
 target_link_libraries(phusis
     Vulkan::Vulkan
     Vulkan::Headers

@@ -27,8 +27,13 @@
 
 #define GLFW_INCLUDE_VULKAN
 #include <vulkan/vulkan.h>
+#include <vulkan/vulkan.hpp>
 #include <GLFW/glfw3.h>
 #undef GLFW_INCLUDE_VULKAN
+
+#include <glm/glm.hpp>
+
+#define DLLEXPORT __attribute__((visibility("default")))
 
 #define CCTOR \
 friend class cctor; \
