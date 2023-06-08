@@ -1,11 +1,11 @@
-#include "sys/lockable.hxx"
+#include "sys/spinlock.hxx"
 
 /*
  * spinlock implementation by Erik Rigtorp
  * https://rigtorp.se/spinlock/
  */
 
-void sys::lockable::lock() noexcept
+void sys::spinlock::lock() noexcept
 {
 	while (true)
 	{
@@ -16,13 +16,13 @@ void sys::lockable::lock() noexcept
 	}
 }
 
-bool sys::lockable::trylock() noexcept
+bool sys::spinlock::trylock() noexcept
 {
 	return !_lock.load(std::memory_order_relaxed) &&
 		   !_lock.exchange(true, std::memory_order_acquire);
 }
 
-void sys::lockable::unlock() noexcept
+void sys::spinlock::unlock() noexcept
 {
 	_lock.store(false, std::memory_order_release);
 }

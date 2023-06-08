@@ -1,11 +1,11 @@
-#ifndef PHUSIS_LOCKABLE_HXX
-#define PHUSIS_LOCKABLE_HXX
+#ifndef PHUSIS_SPINLOCK_HXX
+#define PHUSIS_SPINLOCK_HXX
 
 #include "fw.hxx"
 
 namespace sys
 {
-	class lockable
+	class spinlock
 	{
 	private:
 		std::atomic<bool> _lock{false};
@@ -18,4 +18,4 @@ namespace sys
 }
 
 
-#endif //PHUSIS_LOCKABLE_HXX
+#endif //PHUSIS_SPINLOCK_HXX
