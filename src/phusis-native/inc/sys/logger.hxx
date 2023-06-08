@@ -2,7 +2,7 @@
 #define PHUSIS_LOGGER_HXX
 
 #include "fw.hxx"
-#include "lockable.hxx"
+#include "spinlock.hxx"
 
 namespace sys
 {

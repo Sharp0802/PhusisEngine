@@ -2,7 +2,7 @@
 #define PHUSIS_APPLICATION_HXX
 
 #include "fw.hxx"
-
+#include "engineobject.hxx"
 
 namespace Phusis
 {
@@ -55,6 +55,8 @@ namespace Phusis
 		std::vector<ThreadData> _threads{ std::thread::hardware_concurrency()};
 
 		std::vector<VkFramebuffer> _framebuffers{};
+
+		std::vector<EngineObjectData> _objects{};
 
 	private:
 		VkSurfaceFormatKHR _surfaceFormat{};

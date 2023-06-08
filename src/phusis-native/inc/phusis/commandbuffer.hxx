@@ -15,7 +15,7 @@ namespace Phusis
 	{
 	private:
 		const uint32_t _width, _height;
-		const ObjectData& _data;
+		const EngineObjectData& _data;
 		const glm::mat4& _projection;
 		const glm::mat4& _view;
 
@@ -30,7 +30,7 @@ namespace Phusis
 				const Application& app,
 				VkCommandBuffer buffer,
 				VkCommandBufferInheritanceInfo inheritance,
-				const ObjectData& data) noexcept
+				const EngineObjectData& data) noexcept
 				: _width(app.Width),
 				  _height(app.Height),
 				  _data(data),

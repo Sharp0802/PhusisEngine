@@ -21,6 +21,8 @@
 #include <filesystem>
 #include <algorithm>
 #include <thread>
+#include <queue>
+#include <future>
 
 #include <unistd.h>
 #include <threads.h>

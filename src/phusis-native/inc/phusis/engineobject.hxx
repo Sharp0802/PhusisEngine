@@ -5,7 +5,7 @@
 #include "fw.hxx"
 #include <utility>
 
-struct ObjectData
+struct EngineObjectData
 {
 	bool enabled = true;
 
@@ -13,7 +13,7 @@ struct ObjectData
 	const glm::vec4 Color;
 	const Mesh Mesh;
 
-	explicit ObjectData(glm::mat4 rot, glm::vec4 color, struct Mesh mesh)
+	explicit EngineObjectData(glm::mat4 rot, glm::vec4 color, struct Mesh mesh)
 			: Rotation(rot), Color(color), Mesh(std::move(mesh))
 	{
 	}

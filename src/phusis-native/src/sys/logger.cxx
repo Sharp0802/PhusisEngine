@@ -1,6 +1,6 @@
 #include "sys/logger.hxx"
 
-static sys::lockable _lock;
+static sys::spinlock _lock;
 
 sys::loggerctx sys::logger::__head(loggerctrl ctrl, const char* file, int32_t line)
 {
