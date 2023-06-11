@@ -27,7 +27,7 @@ Phusis::Threading::ThreadPool::cctor::cctor()
 				_local[i].unlock();
 
 				if (lambda != nullptr)
-					(*lambda)();
+					(*lambda)(i);
 			}
 		});
 	}
@@ -51,8 +51,8 @@ void Phusis::Threading::ThreadPool::Submit(
 		for (size_t i = 0; i < batchSize; ++i)
 		{
 			_local[i].lock();
-			_queue[i].emplace_back([batchable, i] {
-				batchable(i);
+			_queue[i].emplace_back([batchable, i] (uint32_t tid) {
+				batchable(tid, i);
 			});
 			_local[i].unlock();
 		}
@@ -62,12 +62,12 @@ void Phusis::Threading::ThreadPool::Submit(
 		for (size_t i = 0; i < _workers.size(); ++i)
 		{
 			_local[i].lock();
-			_queue[i].emplace_back([batchable, batchSize, i] {
+			_queue[i].emplace_back([batchable, batchSize, i] (uint32_t tid) {
 				size_t size = _workers.size();
 				size_t cnt = batchSize / size + (batchSize % size ? 1 : 0);
 				size_t offset = batchSize / size * i + std::min(batchSize % size, i);
 				for (size_t j = 0; j < cnt; ++j)
-					batchable(offset + j);
+					batchable(tid, offset + j);
 			});
 			_local[i].unlock();
 		}
