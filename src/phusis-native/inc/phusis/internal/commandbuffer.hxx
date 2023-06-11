@@ -4,18 +4,19 @@
 #include <utility>
 
 #include "fw.hxx"
-#include "application.hxx"
-#include "buffer.hxx"
-#include "mesh.hxx"
-#include "engineobject.hxx"
+#include "phusis/application.hxx"
+#include "phusis/buffer.hxx"
+#include "phusis/mesh.hxx"
+#include "phusis/engineobject.hxx"
 
-namespace Phusis
+namespace Phusis::Internal
 {
 	class CommandBuffer
 	{
 	private:
-		const uint32_t _width, _height;
-		const EngineObjectData& _data;
+		EngineObjectData* _data = nullptr;
+
+		const uint32_t *_width, *_height;
 		const glm::mat4& _projection;
 		const glm::mat4& _view;
 
@@ -29,11 +30,9 @@ namespace Phusis
 		explicit CommandBuffer(
 				const Application& app,
 				VkCommandBuffer buffer,
-				VkCommandBufferInheritanceInfo inheritance,
-				const EngineObjectData& data) noexcept
-				: _width(app.Width),
-				  _height(app.Height),
-				  _data(data),
+				VkCommandBufferInheritanceInfo inheritance) noexcept
+				: _width(&app.Width),
+				  _height(&app.Height),
 				  _projection(app.Projection),
 				  _view(app.View),
 				  _inheritance(inheritance),
@@ -43,6 +42,8 @@ namespace Phusis
 		{
 		}
 
+	public:
+		void Load(EngineObjectData* data) noexcept;
 		bool Update() noexcept;
 	};
 }

@@ -1,4 +1,5 @@
 #include <cstring>
+#include "phusis/internal/constantblock.hxx"
 #include "phusis/application.hxx"
 #include "sys/logger.hxx"
 #include "sys/os.hxx"
@@ -799,7 +800,7 @@ bool Phusis::Application::UpdateCommandBuffers(VkFramebuffer buffer) noexcept
 bool Phusis::Application::VkInitializePipelineLayout() noexcept
 {
 	VkPushConstantRange range{};
-	range.size = sizeof(ThreadPushConstantBlock);
+	range.size = sizeof(Phusis::Internal::ConstantBlock);
 	range.offset = 0;
 	range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 

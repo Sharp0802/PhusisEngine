@@ -3,15 +3,18 @@
 
 #include "fw.hxx"
 
-struct Buffer
+namespace Phusis
 {
-	const VkBuffer Array;
-	const uint32_t Count;
-
-	explicit Buffer(VkBuffer arr, uint32_t cnt) noexcept
-			: Array(arr), Count(cnt)
+	struct Buffer
 	{
-	}
-};
+		const VkBuffer Array;
+		const uint32_t Count;
+
+		explicit Buffer(VkBuffer arr, uint32_t cnt) noexcept
+				: Array(arr), Count(cnt)
+		{
+		}
+	};
+}
 
 #endif //PHUSIS_BUFFER_HXX
