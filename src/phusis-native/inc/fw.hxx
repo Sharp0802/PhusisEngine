@@ -18,6 +18,7 @@
 #include <map>
 #include <sstream>
 #include <atomic>
+#include <execution>
 #include <filesystem>
 #include <algorithm>
 #include <thread>

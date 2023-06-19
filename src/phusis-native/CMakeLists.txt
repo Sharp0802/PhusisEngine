@@ -27,4 +27,5 @@ target_link_libraries(phusis
     Vulkan::dxc_lib
     glfw
     glm
+    tbb
 )
